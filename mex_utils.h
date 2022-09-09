@@ -1,8 +1,8 @@
-#ifndef MEX_WARNINGHELPER_
-#define MEX_WARNINGHELPER_
+#ifndef MEX_UTILS_
+#define MEX_UTILS_
 /**
  * 	@file - headers
- * 	Functions to ensure warnings are always shown in Matlab
+ * 	General utility functions
  *	
  *  Copyright 2021, Max van den Boom
  *
@@ -14,8 +14,17 @@
  *  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "mex.h"
+#include "meflib/meflib/meflib.h"
+
+extern const char pathSeparator;
+
+bool dirExists(const char* path);
+bool fileExists(const char* path);
+char *strchr_sep(const char *str);
+char *strrchr_sep(const char *str);
+bool createDir(const char *path);
 
 void mxForceWarning(const char* warningId, const char *message, ...);
 bool mxIsWarningEnabled(const char* warningId);
 
-#endif   // MEX_WARNINGHELPER_
+#endif   // MEX_UTILS_

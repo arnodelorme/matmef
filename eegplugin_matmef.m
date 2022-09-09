@@ -11,10 +11,17 @@
 
 function versionstr = eegplugin_matmef(fig, trystrs, catchstrs)
 
-    %global EEG
-    versionstr = '1.0.0';
+    % retrieve the version
+    try 
+        versionstr = fileread('VERSION');
+    catch 
+        disp('eegplugin_matmef cannot find the ''VERSION'' file');
+        return
+    end
+    
+    % check input arguments
     if nargin < 3
-        disp('eegplugin_mffmatlabio requires 3 arguments');
+        disp('eegplugin_matmef requires 3 arguments');
         return
     end
     
@@ -36,4 +43,4 @@ function versionstr = eegplugin_matmef(fig, trystrs, catchstrs)
     
     % create menus (CHANGING THESE MENUS AFFECTS THE MAIN eeglab.m FUNCTION)
     % ------------
-    submenu = uimenu( menui, 'Label', 'Import MEF folder', 'separator', 'on', 'CallBack', comload);
+    submenu = uimenu( menui, 'Label', 'Import MEF3 folder', 'separator', 'on', 'CallBack', comload);

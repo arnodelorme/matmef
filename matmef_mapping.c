@@ -5,7 +5,6 @@
  *	
  *  Copyright 2020, Max van den Boom (Multimodal Neuroimaging Lab, Mayo Clinic, Rochester MN)
  *	Adapted from PyMef (by Jan Cimbalnik, Matt Stead, Ben Brinkmann, and Dan Crepeau)
- *  Includes updates from Richard J. Cui - richard.cui@utoronto.ca (4 apr 2020)
  *	
  *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -15,7 +14,7 @@
  */
 #include "matmef_mapping.h"
 #include "mex.h"
-#include "mex_datahelper.h"
+#include "matmef_dataconverter.h"
 
 #include "meflib/meflib/meflib.h"
 
@@ -26,7 +25,7 @@
 
 
 // Universal Header Structures
-const int UNIVERSAL_HEADER_NUMFIELDS		= 21;
+const int UNIVERSAL_HEADER_NUMFIELDS		= 20;
 const char *UNIVERSAL_HEADER_FIELDNAMES[] 	= {	
 	"header_CRC",
 	"body_CRC",
@@ -47,20 +46,20 @@ const char *UNIVERSAL_HEADER_FIELDNAMES[] 	= {
 	"provenance_UUID",
 	"level_1_password_validation_field",
 	"level_2_password_validation_field",
-	"protected_region",
+	//"protected_region",			// (not mapped, reserved, should not be used by end users)
 	"discretionary_region"
 };
 
 // Session, Channel, Segment Processing Structures
-const int SEGMENT_NUMFIELDS			= 11;
+const int SEGMENT_NUMFIELDS			= 12;
 const char *SEGMENT_FIELDNAMES[] 	= {	
 	"channel_type",
-	//"metadata_fps",				// instead of mapping the FILE_PROCESSING_STRUCT object, the data held within is mapped to the 'metadata' field
+	//"metadata_fps",				// instead of mapping the FILE_PROCESSING_STRUCT object, the data held within is mapped to the 'metadata_uh' field
 	//"time_series_data_fps",		// instead of mapping the FILE_PROCESSING_STRUCT object, the data held within is mapped to the 'time_series_data_uh' field
-	//"time_series_indices_fps",	// instead of mapping the FILE_PROCESSING_STRUCT object, the indices held within are mapped to the 'time_series_indices' field
-	//"video_indices_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the indices held within are mapped to the 'video_indices' field
-	//"record_data_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the records-data held within is mapped to the 'records' field
-	//"record_indices_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the records-indices held within are mapped to the 'records' field
+	//"time_series_indices_fps",	// instead of mapping the FILE_PROCESSING_STRUCT object, the (number of) time-series indices are mapped to the 'time_series_indices' field
+	//"video_indices_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the (number of) video indices are mapped to the 'video_indices' field
+	//"record_data_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the (number of) data-records are mapped to the 'records' field
+	//"record_indices_fps",			// instead of mapping the FILE_PROCESSING_STRUCT object, the (number of) records-indices held within are mapped to the 'records' field
 	"name",							// just base name, no extension
 	"path",							// full path to enclosing directory (channel directory)
 	"channel_name",					// just base name, no extension
@@ -72,6 +71,7 @@ const char *SEGMENT_FIELDNAMES[] 	= {
 	"time_series_indices",
 	"video_indices",
 	"records",
+	"metadata_uh",
 	"time_series_data_uh"
 };
 
@@ -125,15 +125,15 @@ const char *SESSION_FIELDNAMES[] 	= {
 
 
 // Metadata Structures
-const int METADATA_SECTION_1_NUMFIELDS		= 4;
+const int METADATA_SECTION_1_NUMFIELDS		= 3;
 const char *METADATA_SECTION_1_FIELDNAMES[] = {
 	"section_2_encryption",
 	"section_3_encryption",
-	"protected_region",				// (not mapped)
-	"discretionary_region"			// (not mapped)
+	//"protected_region",			// (not mapped, reserved, should not be used by end users)
+	"discretionary_region"
 };
 
-const int TIME_SERIES_METADATA_SECTION_2_NUMFIELDS		= 27;
+const int TIME_SERIES_METADATA_SECTION_2_NUMFIELDS		= 26;
 const char *TIME_SERIES_METADATA_SECTION_2_FIELDNAMES[] = {
 	// type-independent fields
 	"channel_description",			// utf8[511];
@@ -162,11 +162,11 @@ const char *TIME_SERIES_METADATA_SECTION_2_FIELDNAMES[] = {
 	"maximum_contiguous_blocks",
 	"maximum_contiguous_block_bytes",
 	"maximum_contiguous_samples",
-	"protected_region",				// (not mapped)
-	"discretionary_region"			// (not mapped)
+	//"protected_region",			// (not mapped, reserved, should not be used by end users)
+	"discretionary_region"
 };
 
-const int VIDEO_METADATA_SECTION_2_NUMFIELDS		= 12;
+const int VIDEO_METADATA_SECTION_2_NUMFIELDS		= 11;
 const char *VIDEO_METADATA_SECTION_2_FIELDNAMES[] 	= {
 	// type-independent fields
 	"channel_description",			// utf8[511]
@@ -180,11 +180,11 @@ const char *VIDEO_METADATA_SECTION_2_FIELDNAMES[] 	= {
 	"maximum_clip_bytes",
 	"video_format",
 	"video_file_CRC",
-	"protected_region",				// (not mapped)
-	"discretionary_region"			// (not mapped)
+	//"protected_region",			// (not mapped, reserved, should not be used by end users)
+	"discretionary_region"
 };
 
-const int METADATA_SECTION_3_NUMFIELDS		= 10;
+const int METADATA_SECTION_3_NUMFIELDS		= 9;
 const char *METADATA_SECTION_3_FIELDNAMES[] = {
 	"recording_time_offset",
 	"DST_start_time",
@@ -194,8 +194,8 @@ const char *METADATA_SECTION_3_FIELDNAMES[] = {
 	"subject_name_2",				// utf8[31]
 	"subject_ID",					// utf8[31]
 	"recording_location",			// utf8[127]
-	"protected_region",				// (not mapped)
-	"discretionary_region"			// (not mapped)
+	//"protected_region",			// (not mapped, reserved, should not be used by end users)
+	"discretionary_region"
 };
 
 const int METADATA_NUMFIELDS 		= 3;
@@ -232,7 +232,7 @@ const char *RECORD_INDEX_FIELDNAMES[] 	= {
 
 
 // Block Indices Structures
-const int TIME_SERIES_INDEX_NUMFIELDS		= 11;
+const int TIME_SERIES_INDEX_NUMFIELDS		= 9;
 const char *TIME_SERIES_INDEX_FIELDNAMES[] 	= {	
 	"file_offset",
 	"start_time",
@@ -241,24 +241,24 @@ const char *TIME_SERIES_INDEX_FIELDNAMES[] 	= {
 	"block_bytes",
 	"maximum_sample_value",
 	"minimum_sample_value",
-	"protected_region",					// (not mapped)
+	//"protected_region",				// (not mapped, reserved, should not be used by end users)
 	"RED_block_flags",
-	"RED_block_protected_region",		// (not mapped)
-	"RED_block_discretionary_region"	// (not mapped)
+	//"RED_block_protected_region",		// (not mapped, reserved, should not be used by end users)
+	"RED_block_discretionary_region"
 };
 
 
 // Frame Indices Structures
-const int VIDEO_INDEX_NUMFIELDS			= 8;
-const char *VIDEO_INDEX_FIELDNAMES[] 	= {	
+const int VIDEO_INDEX_NUMFIELDS			= 9;
+const char *VIDEO_INDEX_FIELDNAMES[] 	= {
 	"start_time",
 	"end_time",
 	"start_frame",
 	"end_frame",
 	"file_offset",
 	"clip_bytes",
-	"protected_region",					// (not mapped)
-	"discretionary_region"				// (not mapped)
+	//"protected_region",				// (not mapped, reserved, should not be used by end users)
+	"discretionary_region"
 };
 
 
@@ -349,6 +349,142 @@ const char *MEFREC_EPOC_1_0_FIELDNAMES[] 	= {
 
 
 ///
+// Functions to create new and initialized matlab-structs
+///
+
+/**
+ * 	Create and initialize a new MEF universal-header matlab-struct
+ *
+ * 	@return				A pointer to the new matlab-struct
+ */
+mxArray *create_init_matlab_uh() {
+	
+    mxArray *mat_uh = mxCreateStructMatrix(1, 1, UNIVERSAL_HEADER_NUMFIELDS, UNIVERSAL_HEADER_FIELDNAMES);
+	
+	mxSetField(mat_uh, 0, "header_CRC", 					mxUint32ByValue(UNIVERSAL_HEADER_HEADER_CRC_NO_ENTRY));
+	mxSetField(mat_uh, 0, "body_CRC", 						mxUint32ByValue(UNIVERSAL_HEADER_BODY_CRC_NO_ENTRY));
+	mxSetField(mat_uh, 0, "file_type_string", 				mxCreateString(""));
+	mxSetField(mat_uh, 0, "mef_version_major", 				mxUint8ByValue(UNIVERSAL_HEADER_MEF_VERSION_MAJOR_NO_ENTRY));
+	mxSetField(mat_uh, 0, "mef_version_minor", 				mxUint8ByValue(UNIVERSAL_HEADER_MEF_VERSION_MINOR_NO_ENTRY));
+	mxSetField(mat_uh, 0, "byte_order_code", 				mxUint8ByValue(UNIVERSAL_HEADER_BYTE_ORDER_CODE_NO_ENTRY));
+	mxSetField(mat_uh, 0, "start_time", 					mxInt64ByValue(UNIVERSAL_HEADER_START_TIME_NO_ENTRY));
+	mxSetField(mat_uh, 0, "end_time", 						mxInt64ByValue(UNIVERSAL_HEADER_END_TIME_NO_ENTRY));
+	mxSetField(mat_uh, 0, "number_of_entries", 				mxInt64ByValue(UNIVERSAL_HEADER_NUMBER_OF_ENTRIES_NO_ENTRY));
+	mxSetField(mat_uh, 0, "maximum_entry_size", 			mxInt64ByValue(UNIVERSAL_HEADER_MAXIMUM_ENTRY_SIZE_NO_ENTRY));
+	mxSetField(mat_uh, 0, "segment_number", 				mxInt32ByValue(UNIVERSAL_HEADER_SEGMENT_NUMBER_NO_ENTRY));
+	mxSetField(mat_uh, 0, "channel_name", 					mxCreateString(""));
+	mxSetField(mat_uh, 0, "session_name", 					mxCreateString(""));
+	mxSetField(mat_uh, 0, "anonymized_name", 				mxCreateString(""));
+	mxSetField(mat_uh, 0, "level_UUID", 					mxCreateNumericMatrix(1, UUID_BYTES, mxUINT8_CLASS, mxREAL));
+	mxSetField(mat_uh, 0, "file_UUID", 						mxCreateNumericMatrix(1, UUID_BYTES, mxUINT8_CLASS, mxREAL));
+	mxSetField(mat_uh, 0, "provenance_UUID", 				mxCreateNumericMatrix(1, UUID_BYTES, mxUINT8_CLASS, mxREAL));
+	mxSetField(mat_uh, 0, "level_1_password_validation_field", 	mxCreateNumericMatrix(1, PASSWORD_VALIDATION_FIELD_BYTES, mxUINT8_CLASS, mxREAL));
+	mxSetField(mat_uh, 0, "level_2_password_validation_field", 	mxCreateNumericMatrix(1, PASSWORD_VALIDATION_FIELD_BYTES, mxUINT8_CLASS, mxREAL));
+	mxSetField(mat_uh, 0, "discretionary_region", 			mxCreateNumericMatrix(1, UNIVERSAL_HEADER_DISCRETIONARY_REGION_BYTES, mxUINT8_CLASS, mxREAL));
+	
+	// return the struct
+	return mat_uh;
+}
+
+/**
+ * 	Create and initialize a new MEF time-series section 2 metadata matlab-struct
+ *
+ * 	@return				A pointer to the new matlab-struct
+ */
+mxArray *create_init_matlab_tmd2() {
+	
+    mxArray *mat_md = mxCreateStructMatrix(1, 1, TIME_SERIES_METADATA_SECTION_2_NUMFIELDS, TIME_SERIES_METADATA_SECTION_2_FIELDNAMES);
+	
+	// type-independent fields
+	mxSetField(mat_md, 0, "channel_description", 			mxCreateString(""));
+	mxSetField(mat_md, 0, "session_description", 			mxCreateString(""));
+	mxSetField(mat_md, 0, "recording_duration", 			mxInt64ByValue(METADATA_RECORDING_DURATION_NO_ENTRY));
+	
+	// type-specific fields
+	mxSetField(mat_md, 0, "reference_description", 			mxCreateString(""));
+	mxSetField(mat_md, 0, "acquisition_channel_number", 	mxInt64ByValue(TIME_SERIES_METADATA_ACQUISITION_CHANNEL_NUMBER_NO_ENTRY));
+	mxSetField(mat_md, 0, "sampling_frequency", 			mxDoubleByValue(TIME_SERIES_METADATA_SAMPLING_FREQUENCY_NO_ENTRY));
+	mxSetField(mat_md, 0, "low_frequency_filter_setting", 	mxDoubleByValue(TIME_SERIES_METADATA_LOW_FREQUENCY_FILTER_SETTING_NO_ENTRY));
+	mxSetField(mat_md, 0, "high_frequency_filter_setting", 	mxDoubleByValue(TIME_SERIES_METADATA_HIGH_FREQUENCY_FILTER_SETTING_NO_ENTRY));
+	mxSetField(mat_md, 0, "notch_filter_frequency_setting", mxDoubleByValue(TIME_SERIES_METADATA_NOTCH_FILTER_FREQUENCY_SETTING_NO_ENTRY));
+	mxSetField(mat_md, 0, "AC_line_frequency", 				mxDoubleByValue(TIME_SERIES_METADATA_AC_LINE_FREQUENCY_NO_ENTRY));
+	mxSetField(mat_md, 0, "units_conversion_factor", 		mxDoubleByValue(TIME_SERIES_METADATA_UNITS_CONVERSION_FACTOR_NO_ENTRY));
+	mxSetField(mat_md, 0, "units_description", 				mxCreateString(""));
+	mxSetField(mat_md, 0, "maximum_native_sample_value", 	mxDoubleByValue(TIME_SERIES_METADATA_MAXIMUM_NATIVE_SAMPLE_VALUE_NO_ENTRY));
+	mxSetField(mat_md, 0, "minimum_native_sample_value", 	mxDoubleByValue(TIME_SERIES_METADATA_MINIMUM_NATIVE_SAMPLE_VALUE_NO_ENTRY));
+	mxSetField(mat_md, 0, "start_sample", 					mxInt64ByValue(TIME_SERIES_METADATA_START_SAMPLE_NO_ENTRY));
+	mxSetField(mat_md, 0, "number_of_samples", 				mxInt64ByValue(TIME_SERIES_METADATA_NUMBER_OF_SAMPLES_NO_ENTRY));
+	mxSetField(mat_md, 0, "number_of_blocks", 				mxInt64ByValue(TIME_SERIES_METADATA_NUMBER_OF_BLOCKS_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_block_bytes", 			mxInt64ByValue(TIME_SERIES_METADATA_MAXIMUM_BLOCK_BYTES_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_block_samples", 			mxUint32ByValue(TIME_SERIES_METADATA_MAXIMUM_BLOCK_SAMPLES_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_difference_bytes", 		mxUint32ByValue(TIME_SERIES_METADATA_MAXIMUM_DIFFERENCE_BYTES_NO_ENTRY));	
+	mxSetField(mat_md, 0, "block_interval", 				mxInt64ByValue(TIME_SERIES_METADATA_BLOCK_INTERVAL_NO_ENTRY));
+	mxSetField(mat_md, 0, "number_of_discontinuities", 		mxInt64ByValue(TIME_SERIES_METADATA_NUMBER_OF_DISCONTINUITIES_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_contiguous_blocks", 		mxInt64ByValue(TIME_SERIES_METADATA_MAXIMUM_CONTIGUOUS_BLOCKS_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_contiguous_block_bytes", mxInt64ByValue(TIME_SERIES_METADATA_MAXIMUM_CONTIGUOUS_BLOCK_BYTES_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_contiguous_samples", 	mxInt64ByValue(TIME_SERIES_METADATA_MAXIMUM_CONTIGUOUS_SAMPLES_NO_ENTRY));
+    mxSetField(mat_md, 0, "discretionary_region", 			mxCreateNumericMatrix(1, TIME_SERIES_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES, mxUINT8_CLASS, mxREAL));
+	
+	// return the struct
+	return mat_md;
+}
+
+/**
+ * 	Create and initialize a new MEF video section 2 metadata matlab-struct
+ *
+ * 	@return				A pointer to the new matlab-struct
+ */
+mxArray *create_init_matlab_vmd2() {
+	
+    mxArray *mat_md = mxCreateStructMatrix(1, 1, VIDEO_METADATA_SECTION_2_NUMFIELDS, VIDEO_METADATA_SECTION_2_FIELDNAMES);
+	
+	// type-independent fields
+	mxSetField(mat_md, 0, "channel_description", 			mxCreateString(""));
+	mxSetField(mat_md, 0, "session_description", 			mxCreateString(""));
+	mxSetField(mat_md, 0, "recording_duration", 			mxInt64ByValue(METADATA_RECORDING_DURATION_NO_ENTRY));
+	
+	// type-specific fields
+	mxSetField(mat_md, 0, "horizontal_resolution", 			mxInt64ByValue(VIDEO_METADATA_HORIZONTAL_RESOLUTION_NO_ENTRY));
+	mxSetField(mat_md, 0, "vertical_resolution", 			mxInt64ByValue(VIDEO_METADATA_VERTICAL_RESOLUTION_NO_ENTRY));
+	mxSetField(mat_md, 0, "frame_rate", 					mxDoubleByValue(VIDEO_METADATA_FRAME_RATE_NO_ENTRY));
+	mxSetField(mat_md, 0, "number_of_clips", 				mxInt64ByValue(VIDEO_METADATA_NUMBER_OF_CLIPS_NO_ENTRY));
+	mxSetField(mat_md, 0, "maximum_clip_bytes", 			mxInt64ByValue(VIDEO_METADATA_MAXIMUM_CLIP_BYTES_NO_ENTRY));
+	mxSetField(mat_md, 0, "video_format", 					mxCreateString(""));
+	mxSetField(mat_md, 0, "video_file_CRC", 				mxUint32ByValue(VIDEO_METADATA_VIDEO_FILE_CRC_NO_ENTRY));
+    mxSetField(mat_md, 0, "discretionary_region", 			mxCreateNumericMatrix(1, VIDEO_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES, mxUINT8_CLASS, mxREAL));
+	
+	// return the struct
+	return mat_md;
+	
+}
+
+/**
+ * 	Create and initialize a new MEF section 3 metadata matlab-struct
+ *
+ * 	@return				A pointer to the new matlab-struct
+ */
+mxArray *create_init_matlab_md3() {
+	
+    mxArray *mat_md = mxCreateStructMatrix(1, 1, METADATA_SECTION_3_NUMFIELDS, METADATA_SECTION_3_FIELDNAMES);
+	
+	mxSetField(mat_md, 0, "recording_time_offset", 			mxInt64ByValue(METADATA_RECORDING_TIME_OFFSET_NO_ENTRY));
+	mxSetField(mat_md, 0, "DST_start_time", 				mxInt64ByValue(METADATA_DST_START_TIME_NO_ENTRY));
+	mxSetField(mat_md, 0, "DST_end_time", 					mxInt64ByValue(METADATA_DST_END_TIME_NO_ENTRY));
+	mxSetField(mat_md, 0, "GMT_offset", 					mxInt32ByValue(GMT_OFFSET_NO_ENTRY));
+	mxSetField(mat_md, 0, "subject_name_1", 				mxCreateString(""));
+	mxSetField(mat_md, 0, "subject_name_2", 				mxCreateString(""));
+	mxSetField(mat_md, 0, "subject_ID", 					mxCreateString(""));
+	mxSetField(mat_md, 0, "recording_location", 			mxCreateString(""));
+    mxSetField(mat_md, 0, "discretionary_region", 			mxCreateNumericMatrix(1, METADATA_SECTION_3_DISCRETIONARY_REGION_BYTES, mxUINT8_CLASS, mxREAL));
+	
+	// return the struct
+	return mat_md;
+	
+}
+
+
+
+///
 // Functions to map c-objects to matlab-structs
 ///
 
@@ -358,10 +494,10 @@ const char *MEFREC_EPOC_1_0_FIELDNAMES[] 	= {
  *	The given matlab-struct have multiple entries, the MEF
  *	struct will be mapped on the given index
  *
- * 	@param segment			Pointer to the MEF segment c-struct
- * 	@param map_indices_flag	
- * 	@param mat_segment		Pointer to the existing matlab-struct
- * 	@param mat_index		The index in the existing matlab-struct at which to map the data	
+ * 	@param segment				Pointer to the MEF segment c-struct
+ * 	@param map_indices_flag		Whether to map the time-series and video indices
+ * 	@param mat_segment			Pointer to the existing matlab-struct
+ * 	@param mat_index			The index in the existing matlab-struct at which to map the data	
  */
 void map_mef3_segment_tostruct(SEGMENT *segment, si1 map_indices_flag, mxArray *mat_segment, int mat_index) {
 
@@ -375,8 +511,10 @@ void map_mef3_segment_tostruct(SEGMENT *segment, si1 map_indices_flag, mxArray *
 	
 	
 	//
-	// file processing struct
+	// universal headers (from file processing struct)
 	//
+	
+	mxSetField(mat_segment, mat_index, "metadata_uh", 					map_mef3_uh(segment->metadata_fps->universal_header));
 	if (segment->channel_type == TIME_SERIES_CHANNEL_TYPE)
 		mxSetField(mat_segment, mat_index, "time_series_data_uh", 		map_mef3_uh(segment->time_series_data_fps->universal_header));
 
@@ -460,9 +598,9 @@ void map_mef3_segment_tostruct(SEGMENT *segment, si1 map_indices_flag, mxArray *
 /**
  * 	Map a MEF segment c-struct to a newly created matlab-struct
  *
- * 	@param segment			Pointer to the MEF segment c-struct
- * 	@param map_indices_flag	
- * 	@return					Pointer to the new matlab-struct
+ * 	@param segment				Pointer to the MEF segment c-struct
+ * 	@param map_indices_flag		Whether to map the time-series and video indices
+ * 	@return						Pointer to the new matlab-struct
  */
 mxArray *map_mef3_segment(SEGMENT *segment, si1 map_indices_flag) {
 	mxArray *mat_segment = mxCreateStructMatrix(1, 1, SEGMENT_NUMFIELDS, SEGMENT_FIELDNAMES);
@@ -480,10 +618,10 @@ mxArray *map_mef3_segment(SEGMENT *segment, si1 map_indices_flag) {
  * 	
  *	note: this funtion also loops through segments
  *
- * 	@param channel			A pointer to the MEF channel c-struct
- * 	@param map_indices_flag	
- * 	@param mat_channel		A pointer to the existing matlab-struct
- * 	@param mat_index		The index in the existing matlab-struct at which to map the data	
+ * 	@param channel				A pointer to the MEF channel c-struct
+ * 	@param map_indices_flag		Whether to map the time-series and video indices
+ * 	@param mat_channel			A pointer to the existing matlab-struct
+ * 	@param mat_index			The index in the existing matlab-struct at which to map the data	
  */
 void map_mef3_channel_tostruct(CHANNEL *channel, si1 map_indices_flag, mxArray *mat_channel, int mat_index) {
 	si4   	i;
@@ -560,9 +698,9 @@ void map_mef3_channel_tostruct(CHANNEL *channel, si1 map_indices_flag, mxArray *
  * 	
  *	note: this funtion also loops through segments
  *
- * 	@param channel			A pointer to the MEF channel c-struct
- * 	@param map_indices_flag	
- * 	@return					A pointer to the new matlab-struct
+ * 	@param channel				A pointer to the MEF channel c-struct
+ * 	@param map_indices_flag		Whether to map the time-series and video indices
+ * 	@return						A pointer to the new matlab-struct
  */
 mxArray *map_mef3_channel(CHANNEL *channel, si1 map_indices_flag) {
 	mxArray *mat_channel = mxCreateStructMatrix(1, 1, CHANNEL_NUMFIELDS, CHANNEL_FIELDNAMES);
@@ -573,9 +711,9 @@ mxArray *map_mef3_channel(CHANNEL *channel, si1 map_indices_flag) {
 /**
  * 	Map a MEF session c-struct to a newly created matlab-struct
  *
- * 	@param session			A pointer to the MEF session c-struct
- * 	@param map_indices_flag	
- * 	@return					A pointer to the new matlab-struct
+ * 	@param session				A pointer to the MEF session c-struct
+ * 	@param map_indices_flag		Whether to map the time-series and video indices
+ * 	@return						A pointer to the new matlab-struct
  */
 mxArray *map_mef3_session(SESSION *session, si1 map_indices_flag) {
     si4   	i;
@@ -704,6 +842,7 @@ mxArray *map_mef3_md1(METADATA_SECTION_1 *md1) {
     mxArray *mat_md = mxCreateStructMatrix(1, 1, METADATA_SECTION_1_NUMFIELDS, METADATA_SECTION_1_FIELDNAMES);
 	mxSetField(mat_md, 0, "section_2_encryption", 			mxInt8ByValue(md1->section_2_encryption));
 	mxSetField(mat_md, 0, "section_3_encryption", 			mxInt8ByValue(md1->section_3_encryption));
+	mxSetField(mat_md, 0, "discretionary_region", 			mxUint8ArrayByValue(md1->discretionary_region, METADATA_SECTION_1_DISCRETIONARY_REGION_BYTES));
 
 	// return the struct
 	return mat_md;
@@ -718,7 +857,6 @@ mxArray *map_mef3_md1(METADATA_SECTION_1 *md1) {
 mxArray *map_mef3_tmd2(TIME_SERIES_METADATA_SECTION_2 *tmd2) {
 
     mxArray *mat_md = mxCreateStructMatrix(1, 1, TIME_SERIES_METADATA_SECTION_2_NUMFIELDS, TIME_SERIES_METADATA_SECTION_2_FIELDNAMES);
-	
 	
 	mxSetField(mat_md, 0, "channel_description", 			mxCreateString(tmd2->channel_description));
 	mxSetField(mat_md, 0, "session_description", 			mxCreateString(tmd2->session_description));
@@ -746,15 +884,16 @@ mxArray *map_mef3_tmd2(TIME_SERIES_METADATA_SECTION_2 *tmd2) {
 	mxSetField(mat_md, 0, "maximum_contiguous_blocks", 		mxInt64ByValue(tmd2->maximum_contiguous_blocks));
 	mxSetField(mat_md, 0, "maximum_contiguous_block_bytes", mxInt64ByValue(tmd2->maximum_contiguous_block_bytes));
 	mxSetField(mat_md, 0, "maximum_contiguous_samples", 	mxInt64ByValue(tmd2->maximum_contiguous_samples));
+	mxSetField(mat_md, 0, "discretionary_region", 			mxUint8ArrayByValue(tmd2->discretionary_region, TIME_SERIES_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES));
 	
 	// return the struct
 	return mat_md;
 }
 
 /**
- * 	Map a MEF section 2 video-series metadata c-struct to a newly created matlab-struct
+ * 	Map a MEF section 2 video metadata c-struct to a newly created matlab-struct
  *
- * 	@param vmd2			A pointer to the MEF section 2 video-series metadata c-struct
+ * 	@param vmd2			A pointer to the MEF section 2 video metadata c-struct
  * 	@return				A pointer to the new matlab-struct
  */
 mxArray *map_mef3_vmd2(VIDEO_METADATA_SECTION_2 *vmd2) {
@@ -771,7 +910,8 @@ mxArray *map_mef3_vmd2(VIDEO_METADATA_SECTION_2 *vmd2) {
 	mxSetField(mat_md, 0, "number_of_clips", 				mxInt64ByValue(vmd2->number_of_clips));
 	mxSetField(mat_md, 0, "maximum_clip_bytes", 			mxInt64ByValue(vmd2->maximum_clip_bytes));
 	mxSetField(mat_md, 0, "video_format", 					mxCreateString(vmd2->video_format));
-	//mxSetField(mat_md, 0, "video_file_CRC", 				mxUint32ByValue(vmd2->video_file_CRC));			// TODO: check with valid value, leave empty for now
+	mxSetField(mat_md, 0, "video_file_CRC", 				mxUint32ByValue(vmd2->video_file_CRC));
+	mxSetField(mat_md, 0, "discretionary_region", 			mxUint8ArrayByValue(vmd2->discretionary_region, VIDEO_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES));
 	
 	// return the struct
 	return mat_md;
@@ -795,6 +935,7 @@ mxArray *map_mef3_md3(METADATA_SECTION_3 *md3) {
 	mxSetField(mat_md, 0, "subject_name_2", 				mxCreateString(md3->subject_name_2));
 	mxSetField(mat_md, 0, "subject_ID", 					mxCreateString(md3->subject_ID));
 	mxSetField(mat_md, 0, "recording_location", 			mxCreateString(md3->recording_location));
+	mxSetField(mat_md, 0, "discretionary_region", 			mxUint8ArrayByValue(md3->discretionary_region, METADATA_SECTION_3_DISCRETIONARY_REGION_BYTES));
 	
 	// return the struct
 	return mat_md;
@@ -811,14 +952,15 @@ mxArray *map_mef3_ti(TIME_SERIES_INDEX *ti, si8 number_of_entries) {
 	for (i = 0; i < number_of_entries; ++i) {
 		TIME_SERIES_INDEX *cur_ti = ti + i;
 		
-		mxSetField(mat_ti, i, "file_offset", 				mxInt64ByValue(cur_ti->file_offset));
-		mxSetField(mat_ti, i, "start_time", 				mxInt64ByValue(cur_ti->start_time));
-		mxSetField(mat_ti, i, "start_sample", 				mxInt64ByValue(cur_ti->start_sample));
-		mxSetField(mat_ti, i, "number_of_samples", 			mxUint32ByValue(cur_ti->number_of_samples));
-		mxSetField(mat_ti, i, "block_bytes", 				mxUint32ByValue(cur_ti->block_bytes));
-		mxSetField(mat_ti, i, "maximum_sample_value", 		mxInt32ByValue(cur_ti->maximum_sample_value));
-		mxSetField(mat_ti, i, "minimum_sample_value", 		mxInt32ByValue(cur_ti->minimum_sample_value));
-        mxSetField(mat_ti, i, "RED_block_flags", 			mxUint8ByValue(cur_ti->RED_block_flags));
+		mxSetField(mat_ti, i, "file_offset", 					mxInt64ByValue(cur_ti->file_offset));
+		mxSetField(mat_ti, i, "start_time", 					mxInt64ByValue(cur_ti->start_time));
+		mxSetField(mat_ti, i, "start_sample", 					mxInt64ByValue(cur_ti->start_sample));
+		mxSetField(mat_ti, i, "number_of_samples", 				mxUint32ByValue(cur_ti->number_of_samples));
+		mxSetField(mat_ti, i, "block_bytes", 					mxUint32ByValue(cur_ti->block_bytes));
+		mxSetField(mat_ti, i, "maximum_sample_value", 			mxInt32ByValue(cur_ti->maximum_sample_value));
+		mxSetField(mat_ti, i, "minimum_sample_value", 			mxInt32ByValue(cur_ti->minimum_sample_value));
+        mxSetField(mat_ti, i, "RED_block_flags", 				mxUint8ByValue(cur_ti->RED_block_flags));
+		mxSetField(mat_ti, i, "RED_block_discretionary_region", mxUint8ArrayByValue(cur_ti->RED_block_discretionary_region, RED_BLOCK_DISCRETIONARY_REGION_BYTES));
 	}	
 	
 	// return the struct
@@ -842,6 +984,7 @@ mxArray *map_mef3_vi(VIDEO_INDEX *vi, si8 number_of_entries) {
 		mxSetField(mat_vi, i, "end_frame", 					mxUint32ByValue(cur_vi->end_frame));
 		mxSetField(mat_vi, i, "file_offset", 				mxInt64ByValue(cur_vi->file_offset));
 		mxSetField(mat_vi, i, "clip_bytes", 				mxInt64ByValue(cur_vi->clip_bytes));
+		mxSetField(mat_vi, i, "discretionary_region", 		mxUint8ArrayByValue(cur_vi->discretionary_region, VIDEO_INDEX_DISCRETIONARY_REGION_BYTES));
 		
 	}	
 	
@@ -905,7 +1048,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{			
 					mxArray *mat_note = map_mef3_note(rh);
 					if (mat_note != NULL)
-						mxSetField(mat_records, i, "body", 			mat_note);
+						mxSetField(mat_records, i, "body", 	mat_note);
 				}
 				
 				break;
@@ -913,7 +1056,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_edfa = map_mef3_edfa(rh);
 					if (mat_edfa != NULL)
-						mxSetField(mat_records, i, "body", 			mat_edfa);
+						mxSetField(mat_records, i, "body", 	mat_edfa);
 				}
 				
 				break;
@@ -921,7 +1064,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_lntp = map_mef3_lntp(rh);
 					if (mat_lntp != NULL)
-						mxSetField(mat_records, i, "body", 			mat_lntp);
+						mxSetField(mat_records, i, "body", 	mat_lntp);
 				}
 				
 				break;
@@ -929,7 +1072,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_seiz = map_mef3_seiz(rh);
 					if (mat_seiz != NULL)
-						mxSetField(mat_records, i, "body", 			mat_seiz);
+						mxSetField(mat_records, i, "body", 	mat_seiz);
 				}
 				
 				break;
@@ -937,7 +1080,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_csti = map_mef3_csti(rh);
 					if (mat_csti != NULL)
-						mxSetField(mat_records, i, "body", 			mat_csti);
+						mxSetField(mat_records, i, "body", 	mat_csti);
 				}
 				
 				break;
@@ -945,7 +1088,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_esti = map_mef3_esti(rh);
 					if (mat_esti != NULL)
-						mxSetField(mat_records, i, "body", 			mat_esti);
+						mxSetField(mat_records, i, "body", 	mat_esti);
 				}
 				
 				break;
@@ -953,7 +1096,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_curs = map_mef3_curs(rh);
 					if (mat_curs != NULL)
-						mxSetField(mat_records, i, "body", 			mat_curs);
+						mxSetField(mat_records, i, "body", 	mat_curs);
 				}
 				
 				break;
@@ -961,7 +1104,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 				{
 					mxArray *mat_epoc = map_mef3_epoc(rh);
 					if (mat_epoc != NULL)
-						mxSetField(mat_records, i, "body", 			mat_epoc);
+						mxSetField(mat_records, i, "body", 	mat_epoc);
 				}
 				
 				break;
@@ -969,7 +1112,7 @@ mxArray *map_mef3_records(FILE_PROCESSING_STRUCT *ri_fps, FILE_PROCESSING_STRUCT
 
 				if (rh->version_major == 1 && rh->version_minor == 0) {
 					si1 *log_entry = (si1 *) rh + MEFREC_SyLg_1_0_TEXT_OFFSET;
-					mxSetField(mat_records, i, "body", 			mxCreateString(log_entry));
+					mxSetField(mat_records, i, "body", 		mxCreateString(log_entry));
 					
 				} else
 					mexPrintf("Warning: unrecognized SyLg version, skipping SyLg body\n");
@@ -1148,7 +1291,7 @@ mxArray *map_mef3_esti(RECORD_HEADER *rh) {
 		mxArray *mat_esti = mxCreateStructMatrix(1, 1, MEFREC_ESTI_1_0_NUMFIELDS, MEFREC_ESTI_1_0_FIELDNAMES);
 		mxSetField(mat_esti, 0, "amplitude", 				mxDoubleByValue(esti->amplitude));
 		mxSetField(mat_esti, 0, "frequency", 				mxDoubleByValue(esti->frequency));
-		mxSetField(mat_esti, 0, "pulse_width", 				mxDoubleByValue(esti->pulse_width));
+		mxSetField(mat_esti, 0, "pulse_width", 				mxInt64ByValue(esti->pulse_width));
 		mxSetField(mat_esti, 0, "ampunit_code", 			mxInt32ByValue(esti->ampunit_code));
 		mxSetField(mat_esti, 0, "mode_code", 				mxInt32ByValue(esti->mode_code));
 		mxSetField(mat_esti, 0, "waveform", 				mxCreateString(esti->waveform));
@@ -1183,7 +1326,7 @@ mxArray *map_mef3_curs(RECORD_HEADER *rh) {
 		mxSetField(mat_curs, 0, "id_number", 				mxInt64ByValue(cursor->id_number));
 		mxSetField(mat_curs, 0, "trace_timestamp", 			mxInt64ByValue(cursor->trace_timestamp));
 		mxSetField(mat_curs, 0, "latency", 					mxInt64ByValue(cursor->latency));
-		mxSetField(mat_curs, 0, "value", 					mxInt64ByValue(cursor->value));
+		mxSetField(mat_curs, 0, "value", 					mxDoubleByValue(cursor->value));
 		mxSetField(mat_curs, 0, "name", 					mxCreateString(cursor->name));
 		
 		// return the struct
@@ -1232,7 +1375,7 @@ mxArray *map_mef3_epoc(RECORD_HEADER *rh) {
 
 /**
  * 	Map a MEF universal_header c-struct to a newly created matlab-struct
- *  (added by Richard J. Cui)
+ *  (contribution by Richard J. Cui, 4 apr 2020)
  *
  * 	@param universal_header		Pointer to the MEF universal_header c-struct
  * 	@return						Pointer to the new matlab-struct
@@ -1260,10 +1403,101 @@ mxArray *map_mef3_uh(UNIVERSAL_HEADER *universal_header) {
     mxSetField(mat_uh, 0, "provenance_UUID", 				mxUint8ArrayByValue(universal_header->provenance_UUID, UUID_BYTES));
     mxSetField(mat_uh, 0, "level_1_password_validation_field", mxUint8ArrayByValue(universal_header->level_1_password_validation_field, PASSWORD_VALIDATION_FIELD_BYTES));
     mxSetField(mat_uh, 0, "level_2_password_validation_field", mxUint8ArrayByValue(universal_header->level_2_password_validation_field, PASSWORD_VALIDATION_FIELD_BYTES));
-    mxSetField(mat_uh, 0, "protected_region", 				mxUint8ArrayByValue(universal_header->protected_region, UNIVERSAL_HEADER_PROTECTED_REGION_BYTES)); 
     mxSetField(mat_uh, 0, "discretionary_region", 			mxUint8ArrayByValue(universal_header->discretionary_region, UNIVERSAL_HEADER_DISCRETIONARY_REGION_BYTES));
     
 	// return the struct
 	return mat_uh;
 	
+}
+
+
+
+///
+// Functions to map matlab-structs to existing c-objects
+///
+
+
+/**
+ * 	Map MEF time-series section 2 metadata from a matlab-struct to an existing c-struct
+ *
+ * 	@param mat_tmd2		A pointer to the source matlab-struct with the MEF time-series section 2 metadata 
+ * 	@param tmd2			A pointer to the destination c-struct
+ */
+bool map_matlab_tmd2(mxArray *mat_tmd2, TIME_SERIES_METADATA_SECTION_2 *tmd2) {
+	
+	if (!cpyMxFieldStringToUtf8CharString(mat_tmd2, "channel_description", tmd2->channel_description, METADATA_CHANNEL_DESCRIPTION_BYTES))		return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_tmd2, "session_description", tmd2->session_description, METADATA_SESSION_DESCRIPTION_BYTES))		return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "recording_duration", &tmd2->recording_duration))														return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_tmd2, "reference_description", tmd2->reference_description, TIME_SERIES_METADATA_REFERENCE_DESCRIPTION_BYTES))	return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "acquisition_channel_number", &tmd2->acquisition_channel_number))										return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "sampling_frequency", &tmd2->sampling_frequency))														return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "low_frequency_filter_setting", &tmd2->low_frequency_filter_setting))									return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "high_frequency_filter_setting", &tmd2->high_frequency_filter_setting))								return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "notch_filter_frequency_setting", &tmd2->notch_filter_frequency_setting))								return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "AC_line_frequency", &tmd2->AC_line_frequency))														return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "units_conversion_factor", &tmd2->units_conversion_factor))											return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_tmd2, "units_description", tmd2->units_description, TIME_SERIES_METADATA_UNITS_DESCRIPTION_BYTES))	return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "maximum_native_sample_value", &tmd2->maximum_native_sample_value))									return false;
+	if (!cpyMxFieldDoubleToVar(mat_tmd2, "minimum_native_sample_value", &tmd2->minimum_native_sample_value))									return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "start_sample", &tmd2->start_sample))																	return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "number_of_samples", &tmd2->number_of_samples))															return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "number_of_blocks", &tmd2->number_of_blocks))															return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "maximum_block_bytes", &tmd2->maximum_block_bytes))														return false;
+	if (!cpyMxFieldUint32ToVar(mat_tmd2, "maximum_block_samples", &tmd2->maximum_block_samples))												return false;
+	if (!cpyMxFieldUint32ToVar(mat_tmd2, "maximum_difference_bytes", &tmd2->maximum_difference_bytes))											return false;	
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "block_interval", &tmd2->block_interval))																return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "number_of_discontinuities", &tmd2->number_of_discontinuities))											return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "maximum_contiguous_blocks", &tmd2->maximum_contiguous_blocks))											return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "maximum_contiguous_block_bytes", &tmd2->maximum_contiguous_block_bytes))								return false;
+	if (!cpyMxFieldInt64ToVar(mat_tmd2, "maximum_contiguous_samples", &tmd2->maximum_contiguous_samples))										return false;
+	if (!cpyMxFieldUint8ArrayToVar(mat_tmd2, "discretionary_region", tmd2->discretionary_region, TIME_SERIES_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES))	return false;
+	
+	// return success
+	return true;
+}
+
+/**
+ * 	Map MEF video section 2 metadata from a matlab-struct to an existing c-struct
+ *
+ * 	@param mat_vmd2		A pointer to the source matlab-struct with the MEF video section 2 metadata 
+ * 	@param vmd2			A pointer to the destination c-struct
+ */
+bool map_matlab_vmd2(mxArray *mat_vmd2, VIDEO_METADATA_SECTION_2 *vmd2) {
+	
+	if (!cpyMxFieldStringToUtf8CharString(mat_vmd2, "channel_description", vmd2->channel_description, METADATA_CHANNEL_DESCRIPTION_BYTES))		return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_vmd2, "session_description", vmd2->session_description, METADATA_SESSION_DESCRIPTION_BYTES))		return false;
+	if (!cpyMxFieldInt64ToVar(mat_vmd2, "recording_duration", &vmd2->recording_duration))														return false;
+	if (!cpyMxFieldInt64ToVar(mat_vmd2, "horizontal_resolution", &vmd2->horizontal_resolution))													return false;
+	if (!cpyMxFieldInt64ToVar(mat_vmd2, "vertical_resolution", &vmd2->vertical_resolution))														return false;
+	if (!cpyMxFieldDoubleToVar(mat_vmd2, "frame_rate", &vmd2->frame_rate))																		return false;
+	if (!cpyMxFieldInt64ToVar(mat_vmd2, "number_of_clips", &vmd2->number_of_clips))																return false;
+	if (!cpyMxFieldInt64ToVar(mat_vmd2, "maximum_clip_bytes", &vmd2->maximum_clip_bytes))														return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_vmd2, "video_format", vmd2->video_format, VIDEO_METADATA_VIDEO_FORMAT_BYTES))						return false;
+	if (!cpyMxFieldUint32ToVar(mat_vmd2, "video_file_CRC", &vmd2->video_file_CRC))																return false;
+	if (!cpyMxFieldUint8ArrayToVar(mat_vmd2, "discretionary_region", vmd2->discretionary_region, VIDEO_METADATA_SECTION_2_DISCRETIONARY_REGION_BYTES))	return false;
+	
+	// return success
+	return true;
+}
+
+/**
+ * 	Map MEF section 3 metadata from a matlab-struct to an existing c-struct
+ *
+ * 	@param mat_md3		A pointer to the source matlab-struct with the MEF section 3 metadata 
+ * 	@param md3			A pointer to the destination c-struct
+ */
+bool map_matlab_md3(mxArray *mat_md3, METADATA_SECTION_3 *md3) {
+	
+	if (!cpyMxFieldInt64ToVar(mat_md3, "recording_time_offset", &md3->recording_time_offset))											return false;
+	if (!cpyMxFieldInt64ToVar(mat_md3, "DST_start_time", &md3->DST_start_time))															return false;
+	if (!cpyMxFieldInt64ToVar(mat_md3, "DST_end_time", &md3->DST_end_time))																return false;
+	if (!cpyMxFieldInt32ToVar(mat_md3, "GMT_offset", &md3->GMT_offset))																	return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_md3, "subject_name_1", md3->subject_name_1, METADATA_SUBJECT_NAME_BYTES))					return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_md3, "subject_name_2", md3->subject_name_2, METADATA_SUBJECT_NAME_BYTES))					return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_md3, "subject_ID", md3->subject_ID, METADATA_SUBJECT_ID_BYTES))							return false;
+	if (!cpyMxFieldStringToUtf8CharString(mat_md3, "recording_location", md3->recording_location, METADATA_RECORDING_LOCATION_BYTES))	return false;
+	if (!cpyMxFieldUint8ArrayToVar(mat_md3, "discretionary_region", md3->discretionary_region, METADATA_SECTION_3_DISCRETIONARY_REGION_BYTES))	return false;
+	
+	// return success
+	return true;
 }

@@ -1,19 +1,22 @@
-# matmef
+# MatMef
 Matlab wrapper for MEF 3.0 library
 
-This project provides several Matlab mex functions that wrap around the MEF 3.0 library to read MEF 3.0 data
+This project provides Matlab (mex) functions to read and write MEF 3.0 data using the MEF 3.0 library
 
 ## Using pre-compiled mex files
 1. Clone or download (and extract) the matmef repository
-2. Use the functions
+2. Use the functions (as illustrated in the examples below)
 
 ## Building from source
 1. Clone the matmef repository using: `git clone https://github.com/MaxvandenBoom/matmef.git`
 2. Start matlab and set the matmef folder as your working directory
 3. To compile the .mex files, run the following lines in matlab:
 
-   - `mex read_mef_session_metadata.c matmef_mapping.c mex_datahelper.c`
-   - `mex read_mef_ts_data.c matmef_data.c mex_warninghelper.c`
+   - `mex read_mef_session_metadata.c matmef_mapping.c mex_utils.c matmef_dataconverter.c`
+   - `mex read_mef_ts_data.c matmef_read.c mex_utils.c matmef_dataconverter.c`
+   - `mex init_mef_struct.c matmef_mapping.c mex_utils.c matmef_dataconverter.c`
+   - `mex write_mef_segment_metadata.c matmef_write.c mex_utils.c matmef_utils.c matmef_mapping.c matmef_dataconverter.c`
+   - `mex write_mef_ts_segment_data.c matmef_write.c mex_utils.c matmef_utils.c matmef_mapping.c matmef_dataconverter.c`
 
 ## Matlab usage examples
 ```
@@ -48,8 +51,8 @@ ranges = [[0,    1000]; ...
   
 session = read_mef_session_metadata('./mefSessionData/', [], 1);  
 data = read_mef_ts_data('./mefSessionData/channelPath/');  
-data = read_mef_ts_data('./mefSessionData/channelPath/', [], 'samples', 0, 1000);  
-data = read_mef_ts_data('./mefSessionData/channelPath/', [], 'time', 1578715810000000, 1578715832000000);  
+data = read_mef_ts_data('./mefSessionData/channelPath/', [], 'samples', int64(0), int64(1000));
+data = read_mef_ts_data('./mefSessionData/channelPath/', [], 'time', int64(1578715810000000), int64(1578715832000000));
 ```
 
 ## Acknowledgements
@@ -57,5 +60,6 @@ data = read_mef_ts_data('./mefSessionData/channelPath/', [], 'time', 15787158100
 - Written by Max van den Boom (Multimodal Neuroimaging Lab, Mayo Clinic, Rochester MN)
 - Adapted from PyMef (by Jan Cimbalnik, Matt Stead, Ben Brinkmann, and Dan Crepeau)
 - EEGLAB plugin code by Arnaud Delorme
+- Contributors: Richard J. Cui, Dan Crepeau
 
 - This project was funded by the National Institute Of Mental Health of the National Institutes of Health Award Number R01MH122258 to Dora Hermes

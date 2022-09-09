@@ -1,7 +1,7 @@
 /**
  * 	@file
  * 	MEF 3.0 Library Matlab Wrapper
- * 	Functions to load data from MEF3 datafiles
+ * 	Functions to load data from MEF3 files
  *	
  *  Copyright 2021, Max van den Boom (Multimodal Neuroimaging Lab, Mayo Clinic, Rochester MN)
  *	Adapted from PyMef (by Jan Cimbalnik, Matt Stead, Ben Brinkmann, and Dan Crepeau)
@@ -13,9 +13,9 @@
  *  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *  You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include "matmef_data.h"
+#include "matmef_read.h"
 #include "mex.h"
-#include "mex_warninghelper.h"
+#include "mex_utils.h"
 
 #include "meflib/meflib/meflib.c"
 #include "meflib/meflib/mefrec.c"
@@ -26,8 +26,8 @@
  *  The range is defined as a type (RANGE_BY_SAMPLES or RANGE_BY_TIME), a startpoint and an endpoint.
  * 	
  *
- * 	@param channel_path         The channel filepath
- * 	@param password             Password for the MEF3 datafiles (no password = NULL or empty string)
+ * 	@param channel_path         The path to the channel directory
+ * 	@param password             Password for the MEF3 datafiles (no password = NULL)
  *	@param range_type           Modality that is used to define the data-range to read [either 'time' or 'samples']
  *	@param range_start          Start-point for the reading of data (either as an epoch/unix timestamp or samplenumber; -1 for first)
  *	@param range_end            End-point to stop the of reading data (either as an epoch/unix timestamp or samplenumber; -1 for last)
@@ -36,10 +36,8 @@
  */
 mxArray *read_channel_data_from_path(si1 *channel_path, si1 *password, bool range_type, si8 range_start, si8 range_end, bool apply_conv_factor) {
 
-	// check if the password is empty, correct to NULL if it is
-	if (password != NULL && password[0] == '\0') {
-		password = NULL;
-	}
+	// if the password is just the null character, then correct to a null pointer
+	if (password != NULL && password[0] == '\0')	password = NULL;
 	
 	// initialize MEF library
 	(void) initialize_meflib();
@@ -50,28 +48,28 @@ mxArray *read_channel_data_from_path(si1 *channel_path, si1 *password, bool rang
 	
 	// check the number of segments
 	if (channel->number_of_segments == 0) {
-		mexPrintf("Error: no segments in channel, most likely due to an invalid channel folder, exiting...\n"); 
+		mexPrintf("Error: no segments in channel, most likely due to an invalid channel folder, exiting...\n");
         return NULL;
 	}
 	
 	// check if the data is encrypted and/or the correctness of password
 	if (channel->metadata.section_1->section_2_encryption > 0 || channel->metadata.section_1->section_2_encryption > 0) {
 		if (password == NULL)
-			mexPrintf("Error: data is encrypted, but no password is given, exiting...\n"); 
+			mexPrintf("Error: data is encrypted, but no password is given, exiting...\n");
 		else
-			mexPrintf("Error: wrong password for encrypted data, exiting...\n"); 
+			mexPrintf("Error: wrong password for encrypted data, exiting...\n");
 		return NULL;
 	}
 	
 	// check if the channel is indeed of a time-series channel
 	if (channel->channel_type != TIME_SERIES_CHANNEL_TYPE) {
-		mexPrintf("Error: not a time series channel, exiting...\n"); 
+		mexPrintf("Error: not a time series channel, exiting...\n");
 		return NULL;
 	}
 	
 	// read the data by the channel object
 	mxArray *samples_read = read_channel_data_from_object(channel, range_type, range_start, range_end, apply_conv_factor);
-			
+	
 	// free the channel object memory
 	if (channel->number_of_segments > 0)	channel->segments[0].metadata_fps->directives.free_password_data = MEF_TRUE;
 	free_channel(channel, MEF_TRUE);
@@ -128,11 +126,11 @@ mxArray *read_channel_data_from_object(CHANNEL *channel, bool range_type, si8 ra
 	
 	// check if valid data range
     if (range_type == RANGE_BY_TIME && start_time >= end_time) {
-		mexPrintf("Error: start time later than end time, exiting...\n");
+		mexPrintf("Error: start-time (%lld) later than end-time (%lld), exiting...\n", start_time, end_time);
         return NULL;
     }
     if (range_type == RANGE_BY_SAMPLES && start_samp >= end_samp) {
-        mexPrintf("Error: start sample larger than end sample, exiting...\n");
+        mexPrintf("Error: start-sample (%lld) larger than end-sample (%lld), exiting...\n", start_samp, end_samp);
         return NULL;
     }
 	
@@ -518,7 +516,7 @@ mxArray *read_channel_data_from_object(CHANNEL *channel, bool range_type, si8 ra
 		// incorrect crc
 		
 		// message
-		mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...", start_idx);
+		mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...\n", start_idx);
 
 		//
         free (compressed_data_buffer);
@@ -580,7 +578,7 @@ mxArray *read_channel_data_from_object(CHANNEL *channel, bool range_type, si8 ra
 			// incorrect crc
 						
 			// message
-			mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...", start_idx + i);
+			mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...\n", start_idx + i);
 
 			//
 			free (compressed_data_buffer);
@@ -615,7 +613,7 @@ mxArray *read_channel_data_from_object(CHANNEL *channel, bool range_type, si8 ra
 	
 				// message
 				// TODO: better fix for buffer overflow, should not happen
-				mexPrintf("Error: buffer overflow prevented, this should be fixed in the code");
+				mexPrintf("Error: buffer overflow prevented, this should be fixed in the code\n");
 
 				//
 				free (compressed_data_buffer);
@@ -651,12 +649,12 @@ mxArray *read_channel_data_from_object(CHANNEL *channel, bool range_type, si8 ra
 			// incorrect crc
 			
 			// message
-			mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...", start_idx + i);
+			mexPrintf("Error: RED block %lu has 0 bytes, or CRC failed, data likely corrupt...\n", start_idx + i);
 
 			//
-			free (compressed_data_buffer);
-			free (decomp_data);
-			free (temp_data_buf);
+			free(compressed_data_buffer);
+			free(decomp_data);
+			free(temp_data_buf);
 			return NULL;
 			
         }

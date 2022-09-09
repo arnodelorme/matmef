@@ -1,9 +1,9 @@
-#ifndef MATMEF_DATA_
-#define MATMEF_DATA_
+#ifndef MATMEF_READ_
+#define MATMEF_READ_
 /**
  * 	@file - headers
  * 	MEF 3.0 Library Matlab Wrapper
- * 	Functions to load data from MEF3 datafiles
+ * 	Functions to load data from MEF3 files
  *	
  *  Copyright 2020, Max van den Boom (Multimodal Neuroimaging Lab, Mayo Clinic, Rochester MN)
  *	Adapted from PyMef (by Jan Cimbalnik, Matt Stead, Ben Brinkmann, and Dan Crepeau)
@@ -37,5 +37,4 @@ si4 check_block_crc(ui1 *block_hdr_ptr, ui4 max_samps, ui1 *total_data_ptr, ui8 
 
 
 
-
-#endif   // MATMEF_DATA_
+#endif   // MATMEF_READ_

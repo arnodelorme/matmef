@@ -7,7 +7,6 @@
  *	
  *  Copyright 2020, Max van den Boom (Multimodal Neuroimaging Lab, Mayo Clinic, Rochester MN)
  *	Adapted from PyMef (by Jan Cimbalnik, Matt Stead, Ben Brinkmann, and Dan Crepeau)
- *  Includes updates from Richard J. Cui - richard.cui@utoronto.ca (4 apr 2020)
  *	
  *  This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
  *  as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -18,6 +17,10 @@
 #include "mex.h"
 #include "meflib/meflib/meflib.h"
 
+mxArray *create_init_matlab_uh();
+mxArray *create_init_matlab_tmd2();
+mxArray *create_init_matlab_vmd2();
+mxArray *create_init_matlab_md3();
 
 void map_mef3_segment_tostruct(SEGMENT *segment, si1 map_indices_flag, mxArray *mat_segment, int mat_index);
 mxArray *map_mef3_segment(SEGMENT *segment, si1 map_indices_flag);
@@ -44,5 +47,9 @@ mxArray *map_mef3_curs(RECORD_HEADER *rh);
 mxArray *map_mef3_epoc(RECORD_HEADER *rh);
 	
 mxArray *map_mef3_uh(UNIVERSAL_HEADER *universal_header);
+
+bool map_matlab_tmd2(mxArray *mat_tmd2, TIME_SERIES_METADATA_SECTION_2 *tmd2);
+bool map_matlab_vmd2(mxArray *mat_vmd2, VIDEO_METADATA_SECTION_2 *vmd2);
+bool map_matlab_md3(mxArray *mat_md3, METADATA_SECTION_3 *md3);
 
 #endif   // MATMEF_MAPPING_
